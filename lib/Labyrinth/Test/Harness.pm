@@ -4,7 +4,7 @@ use warnings;
 use strict;
 $|++;
 
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 
 #----------------------------------------------------------------------------
 
@@ -14,10 +14,9 @@ Labyrinth::Test::Harness - Test Harness for Labyrinth Plugin modules
 
 =head1 SYNOPSIS
 
-    my $harness = Labyrinth::Test::Harness->new();
-    $harness->new();
+    my $harness = Labyrinth::Test::Harness->new( %options );
 
-    my $res = $harness->prep('file1.sql',;file2.sql');
+    my $res = $harness->prep('file1.sql','file2.sql');
 
     $res = $harness->labyrinth(@plugins);
 
@@ -89,24 +88,25 @@ sub new {
     my $self = {};
     bless $self, $class;
 
-    $self->config(      $hash{config}    || $CONFIG    );
-    $self->directory(   $hash{directory} || $DIRECTORY );
+    $self->keep(        $hash{keep}      || 0           );
+    $self->config(      $hash{config}    || $CONFIG     );
+    $self->directory(   $hash{directory} || $DIRECTORY  );
 
     return $self;
 }
 
 sub DESTROY {
     my $self = shift;
-    $self->cleanup;
+    $self->cleanup  unless($self->keep);
 }
 
 #----------------------------------------------------------------------------
 # Object Methods
 
-__PACKAGE__->mk_accessors(qw( config directory ));
+__PACKAGE__->mk_accessors(qw( config directory keep ));
 
 sub prep {
-    my ($self,@sql) = @_;
+    my ($self,%hash) = @_;
     $self->{error} = '';
 
     my $directory = $self->directory;
@@ -116,6 +116,7 @@ sub prep {
     mkpath($directory) or ( $self->{error} = "cannot create test directory" && return 0 );
 
     for my $dir ('html','cgi-bin') {
+        next    unless(-d "vhost/$dir");
         unless ($self->copy_files("vhost/$dir","$directory/$dir")) {
             $self->{error} = "cannot create test files: " . $self->{error};
             return 0;
@@ -123,6 +124,17 @@ sub prep {
     }
 
     mkpath("$directory/html/cache") or ( $self->{error} = "cannot create cache directory" && return 0 );
+
+    # copy additional files
+    if($hash{files}) {
+        for my $source (keys %{$hash{files}}) {
+            my $target = "$directory/$hash{files}{$source}";
+            unless ($self->copy_file($source,$target)) {
+                $self->{error} = "cannot create test files: " . $self->{error};
+                return 0;
+            }
+        }
+    }
 
     # prep database
     eval "use Test::Database";
@@ -137,7 +149,7 @@ sub prep {
         return 0;
     }
 
-    create_mysql_databases($td1,@sql);
+    create_mysql_databases($td1,$hash{sql});
 
     my %opts;
     ($opts{dsn}, $opts{dbuser}, $opts{dbpass}) =  $td1->connection_info();
@@ -150,7 +162,7 @@ sub prep {
                         qw(driver database dbfile dbhost dbport dbuser dbpass);
 
     # prep config files
-    unless( $self->create_config(\%db_config) ) {
+    unless( $self->create_config(\%db_config,$hash{config}) ) {
         $self->{error} = "Failed to create config file";
         return 0;
     }
@@ -311,9 +323,34 @@ sub copy_files {
     return 1;
 }
 
+sub copy_file {
+    my ($self,$source,$target) = @_;
+
+    unless($source) {
+        $self->{error} = "no source file given";
+        return 0;
+    }
+    unless($target) {
+        $self->{error} = "no target file given";
+        return 0;
+    }
+    unless(-f $source) {
+        $self->{error} = "failed to find source file: $source";
+        return 0;
+    }
+
+    my $dir = dirname($target);
+    mkpath($dir)    unless(-d $dir);
+    if(-d $dir) {
+        copy( $source, $target );
+    } else {
+        $self->{error} = "failed to created directory: $dir";
+        return 0;
+    }
+}
+
 sub create_config {
-    my ($self,$db_config) = @_;
-    my $admin = 'barbie@cpan.org';
+    my ($self,$db_config,$user_config) = @_;
 
     my $config      = $self->config;
     my $directory   = $self->directory;
@@ -321,55 +358,64 @@ sub create_config {
     # main config
     unlink $config if -f $config;
 
-    my $dbcfg1 = join("\n", map { "$_=$db_config->{$_}" } grep { $db_config->{$_}} qw(driver database dbfile dbhost dbport dbuser dbpass) );
+    my %CONFIG = (
+        PROJECT => {
+            icode           => 'testsite',
+            iname           => 'Test Site',
+            administrator   => 'admin@example.com',
+            mailhost        => '',
+            cookiename      => 'session',
+            timeout         => 3600,
+            autoguest       => 1,
+            copyright       => '2013-2014 Me',
+            lastpagereturn  => 0,
+            minpasslen      => 6,
+            maxpasslen      => 20,
+            evalperl        => 1
+        },
+        INTERNAL => {
+            phrasebook      => "$directory/cgi-bin/config/phrasebook.ini",
+            logfile         => "$directory/html/cache/audit.log",
+            loglevel        => 4,
+            logclear        => 1
+        },
+        HTTP => {
+            webpath         => '',
+            cgipath         => '/cgi-bin',
+            realm           => 'public',
+            basedir         => "$directory",
+            webdir          => "$directory/html",
+            cgidir          => "$directory/cgi-bin",
+            requests        => "$directory/cgi-bin/config/requests"
+        },
+        CMS => {
+            htmltags        => '+img',
+            maxpicwidth     => 500,
+            randpicwidth    => 400,
+            blank           => 'images/blank.png',
+            testing         => 0
+        }
+    );
+
+    if($user_config) {
+        for my $section (keys %$user_config) {
+            for my $key (keys %{$user_config->{$section}}) {
+                $CONFIG{$section}{$key} = $user_config->{$section}{$key};
+            }
+        }
+    }
+
+    # just in case, do this last to avoid being overwritten.
+    $CONFIG{DATABASE} = $db_config;
 
     my $fh = IO::File->new($config,'w+') or return 0;
-    print $fh <<PRINT;
-[PROJECT]
-icode=testsite
-iname=Test Site
-administrator=$admin
-mailhost=
-cookiename=session
-timeout=3600
-autoguest=1
-copyright=2002-2014 Barbie
-lastpagereturn=0
-minpasslen=6
-maxpasslen=20
-
-evalperl=1
-
-[INTERNAL]
-phrasebook=$directory/cgi-bin/config/phrasebook.ini
-logfile=$directory/html/cache/audit.log
-loglevel=4
-logclear=1
-
-[HTTP]
-webpath=
-cgipath=/cgi-bin
-realm=public
-basedir=$directory
-webdir=$directory/html
-cgidir=$directory/cgi-bin
-
-requests=$directory/cgi-bin/config/requests
-
-; database configuration
-
-[DATABASE]
-$dbcfg1
-
-[CMS]
-htmltags=+img
-maxpicwidth=500
-randpicwidth=400
-blank=images/blank.png
-
-testing=0
-
-PRINT
+    for my $section (keys %CONFIG) {
+        print $fh "[$section]\n";
+        for my $key (keys %{$CONFIG{$section}}) {
+            print $fh "$key=$CONFIG{$section}{$key}\n";
+        }
+        print $fh "\n";
+    }
 
     $fh->close;
     return 1;
@@ -378,12 +424,14 @@ PRINT
 # this is primitive, but works :)
 
 sub create_mysql_databases {
-    my ($db1,@files) = @_;
+    my ($db1,$files) = @_;
+
+    return  unless($files && @$files > 0);
 
     my (@statements);
     my $sql = '';
 
-    for my $file (@files) {
+    for my $file (@$files) {
 #print STDERR "# file=$file\n";
         my $fh = IO::File->new($file,'r') or next;
         while(<$fh>) {
@@ -442,8 +490,16 @@ Defines a default config file and directory, unless otherwise provided.
 
 Options available are:
 
+  keep      => 1            # default is 0
   config    => $config
   directory => $directory
+
+When a harness object goes out of scope, the DESTROY method is called, unless
+'keep' is a true value, the cleanup method will be automatically called.
+
+'config' and 'directory' preset the respective file and directory names, 
+although these can also be set by the respective methods calls prior to 
+calling the prep method.
 
 =back
 
@@ -451,12 +507,42 @@ Options available are:
 
 =over
 
-=item prep( @sql )
+=item keep( $value )
+
+If set to a true value, don't cleanup when object oes out of scope.
+
+=item config( $value )
+
+Set the name of the file to use as the configuration file. Default is 
+'t/_DBDIR/test-config.ini'.
+
+=item directory( $value )
+
+Set the name of the working directory. Default is 't/_DBDIR'.
+
+=item prep( %options )
 
 Prepares the environment. Copies files from the current vhost directory, 
 creates a database, and runs the necessary SQL to create the required tables
 and add the appropriate data. Saves the configuration settings to the
 designated config file.
+
+The options allow for overides and additional test information to be provided.
+Example option are:
+
+  sql       => [ 'file1', 'file2' ],
+  files     => { 'file3.jpg' => 'html/images/file3.jpg' },
+  config    => { SECTION => { key => 'value' } }
+
+SQL files listed in 'sql' are loaded and run prior to testing. After the 
+initial copyin of the vhost files, the list in 'files' are copied. Note that
+files should be listed as source => target (beneath the $directory) as a 
+key/value pair.
+
+In the 'config' list, the additional sections and parameters can be provided,
+which override the default configurations if necessary. Default sections are
+PROJECT, INTERNAL, HTTP and CMS. DATABASE is also provide, but cannot be 
+overriden.
 
 =item labyrinth( @plugins )
 
@@ -519,6 +605,10 @@ Returns the last error recorded.
 =item copy_files( $source, $target )
 
 Copies files between the source and target directories.
+
+=item copy_file( $source, $target )
+
+Copies a single file from source to target.
 
 =item create_config( $db_config )
 

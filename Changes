@@ -1,5 +1,15 @@
 Changes for the Labyrinth-Test-Harness
 ======================================
 
+1.01	2014-10-16
+        - fixed copying vhost files, if directory not supplied.
+        - extended functional test suite and files.
+        - added abilility to not perform cleanup when object goes out of scope.
+        - prep now accepts a hash of options.
+          - 'sql' list sql files.
+          - files copies additional files into test environment.
+          - config allows addition configuration in the config file.
+        - added copy_file.
+
 1.00	2014-10-08
         - first official release
