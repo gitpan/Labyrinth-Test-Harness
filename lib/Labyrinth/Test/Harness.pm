@@ -4,7 +4,7 @@ use warnings;
 use strict;
 $|++;
 
-our $VERSION = '1.01';
+our $VERSION = '1.02';
 
 #----------------------------------------------------------------------------
 
@@ -145,7 +145,8 @@ sub prep {
 
     my $td1 = Test::Database->handle( 'mysql' );
     unless($td1) {
-        $self->{error} = "Unable to load  a test database instance";
+        use Data::Dumper;
+        $self->{error} = "Unable to load a test database instance.";
         return 0;
     }
 
@@ -165,6 +166,20 @@ sub prep {
     unless( $self->create_config(\%db_config,$hash{config}) ) {
         $self->{error} = "Failed to create config file";
         return 0;
+    }
+
+    # prep environment variables
+
+    my %env = (
+        SERVER_PROTOCOL => 'http',
+        SERVER_PORT     => 80,
+        HTTP_HOST       => 'example.com',
+        REQUEST_URI     => '/',
+        PATH_INFO       => undef
+    );
+
+    for my $key (keys %env) {
+        $ENV{$key} = $hash{ENV}{$key} || $env{$key};
     }
 
     return 1;
@@ -235,9 +250,15 @@ sub refresh {
     $self->set_params( %$params )   if($params);
 }
 
+sub login {
+    my ($self,$id) = @_;
+    return  unless($dbi && $id);
+    my $user = $dbi->GetQuery('hash','GetUserByID',$id);
+    Labyrinth::Session::InternalLogin($user);
+}
+
 sub clear {
     my ($self) = @_;
-
     %tvars      = ();
     %cgiparams  = ();
 }
@@ -493,6 +514,7 @@ Options available are:
   keep      => 1            # default is 0
   config    => $config
   directory => $directory
+  env       => \%environment
 
 When a harness object goes out of scope, the DESTROY method is called, unless
 'keep' is a true value, the cleanup method will be automatically called.
@@ -500,6 +522,16 @@ When a harness object goes out of scope, the DESTROY method is called, unless
 'config' and 'directory' preset the respective file and directory names, 
 although these can also be set by the respective methods calls prior to 
 calling the prep method.
+
+'env' can contain settings for internal environment variables that are used
+within Labyrinth. The environment variables that can be overridden, together
+with their current defaults, are:
+
+    SERVER_PROTOCOL => 'http',
+    SERVER_PORT     => 80,
+    HTTP_HOST       => 'example.com',
+    REQUEST_URI     => '/',
+    PATH_INFO       => undef
 
 =back
 
@@ -560,6 +592,11 @@ internal hashes.
 
 Essentially a short cut to calling labyrinth(), set_vars() and set_params()
 separately.
+
+=item login( $id )
+
+Given a user id, will automatically log that user into the system. This then
+loads the appropriate permissions for that user.
 
 =item cleanup
 
