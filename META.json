@@ -1,6 +1,6 @@
 {
     "name": "Labyrinth-Test-Harness",
-    "version": "1.02",
+    "version": "1.03",
     "abstract": "Links plugin for the Labyrinth framework",
     "author": [
         "Barbie (BARBIE) <barbie@cpan.org>"
@@ -53,7 +53,7 @@
     "provides": {
         "Labyrinth::Test::Harness": {
             "file": "lib/Labyrinth/Test/Harness.pm",
-            "version": "1.02"
+            "version": "1.03"
         }
     },
     "no_index": {
