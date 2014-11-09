@@ -1,6 +1,9 @@
 Changes for the Labyrinth-Test-Harness
 ======================================
 
+1.04	2014-11-09
+        - missing prequisite Class::Accessor::Fast in META.yml.
+
 1.03	2014-10-27
         - fixed login method.
 
