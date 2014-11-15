@@ -4,7 +4,7 @@ use warnings;
 use strict;
 $|++;
 
-our $VERSION = '1.04';
+our $VERSION = '1.05';
 
 #----------------------------------------------------------------------------
 
@@ -482,7 +482,7 @@ sub dosql {
     my ($db,$sql) = @_;
 
     for(@$sql) {
-        #diag "SQL: [$db] $_";
+        #print STDERR "#SQL: [$db] $_\n";
         eval { $db->dbh->do($_); };
         if($@) {
             diag $@;

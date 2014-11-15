@@ -248,10 +248,13 @@ SKIP: {
 
     
     # can we clean up?
-    is(-d $loader->directory ? 1 : 0,1);
+    is(-d $loader->directory ? 1 : 0, 1);
     $loader->cleanup;
-    is(-d $loader->directory ? 1 : 0,0);
-
+    if($^O =~ /Win32/i) {   # Windows cannot delete until after process has stopped
+        ok(1);
+    } else {
+        is(-d $loader->directory ? 1 : 0, 0, 'directory removed');
+    }
 
     $loader = Labyrinth::Test::Harness->new(
         config    => 'foo',
@@ -260,5 +263,4 @@ SKIP: {
 
     is($loader->config,'foo');
     is($loader->directory,'bar');
-
 }

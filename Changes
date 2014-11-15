@@ -1,6 +1,9 @@
 Changes for the Labyrinth-Test-Harness
 ======================================
 
+1.05	2014-11-15
+        - Windows cannot delete directories/files while processing.
+
 1.04	2014-11-09
         - missing prequisite Class::Accessor::Fast in META.yml.
 
