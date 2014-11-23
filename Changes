@@ -1,6 +1,10 @@
 Changes for the Labyrinth-Test-Harness
 ======================================
 
+1.06	2014-11-23
+        - elevated Test::Database to required.
+        - fixed abstract in distribution files.
+
 1.05	2014-11-15
         - Windows cannot delete directories/files while processing.
 

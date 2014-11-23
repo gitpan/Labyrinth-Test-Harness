@@ -4,7 +4,7 @@ use warnings;
 use strict;
 $|++;
 
-our $VERSION = '1.05';
+our $VERSION = '1.06';
 
 #----------------------------------------------------------------------------
 
@@ -58,8 +58,8 @@ use File::Basename;
 use File::Copy;
 use File::Path;
 use IO::File;
-
 use Module::Pluggable   search_path => ['Labyrinth::Plugin'];
+use Test::Database;
 
 # Required Core
 use Labyrinth;
@@ -137,12 +137,6 @@ sub prep {
     }
 
     # prep database
-    eval "use Test::Database";
-    if($@) {
-        $self->{error} = "Unable to load Test::Database: $@";
-        return 0;
-    }
-
     my $td1 = Test::Database->handle( 'mysql' );
     unless($td1) {
         use Data::Dumper;

@@ -1,7 +1,7 @@
 {
     "name": "Labyrinth-Test-Harness",
-    "version": "1.05",
-    "abstract": "Links plugin for the Labyrinth framework",
+    "version": "1.06",
+    "abstract": "Test Harness for Labyrinth Plugin modules",
     "author": [
         "Barbie (BARBIE) <barbie@cpan.org>"
     ],
@@ -42,10 +42,8 @@
                 "File::Path": "0",
                 "IO::File": "0",
                 "Labyrinth": "5.22",
-                "Module::Pluggable": "0"
-            },
-            "recommends": {
-                "Test::Database": "0"
+                "Module::Pluggable": "0",
+                "Test::Database": "1.113"
             }
         }
     },
@@ -53,7 +51,7 @@
     "provides": {
         "Labyrinth::Test::Harness": {
             "file": "lib/Labyrinth/Test/Harness.pm",
-            "version": "1.05"
+            "version": "1.06"
         }
     },
     "no_index": {
