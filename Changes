@@ -1,6 +1,9 @@
 Changes for the Labyrinth-Test-Harness
 ======================================
 
+1.07	2014-12-06
+        - upgraded to Labyrinth-5.29 due to filter problems.
+
 1.06	2014-11-23
         - elevated Test::Database to required.
         - fixed abstract in distribution files.

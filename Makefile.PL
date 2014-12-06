@@ -21,7 +21,7 @@ WriteMakefile(
         'File::Copy'            => '0',
         'File::Path'            => '0',
         'IO::File'              => '0',
-        'Labyrinth'             => '5.22',
+        'Labyrinth'             => '5.29',
         'Module::Pluggable'     => '0',
         'Test::Database'        => '1.113',
 
